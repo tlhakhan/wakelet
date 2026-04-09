@@ -1,0 +1,9 @@
+# Drop this file into /etc/sudoers.d/wakelet
+# Filename must not contain dots or end with ~ (e.g. /etc/sudoers.d/wakelet)
+#
+# Verify syntax before applying:
+#   sudo visudo -cf /etc/sudoers.d/wakelet
+#
+# Replace 'www-data' with the user your FastAPI process runs as.
+
+wakelet ALL=(root) NOPASSWD: /usr/sbin/etherwake

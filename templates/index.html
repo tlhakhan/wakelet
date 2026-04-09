@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wake Up Hosts</title>
+  <link rel="stylesheet" href="/static/vendor/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/vendor/bootstrap-icons-1.13.1/bootstrap-icons.min.css">
+</head>
+<body>
+  <div class="container py-4">
+    <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+    <h2 class="mb-4 text-center"><i class="bi bi-sunrise me-2"></i>Wake Up Hosts</h2>
+
+    {% if hosts %}
+    <ul class="list-group mb-4">
+      {% for host in hosts %}
+      <li class="list-group-item d-flex flex-wrap align-items-center gap-2 py-3">
+        <div class="flex-grow-1">
+          <div class="fw-bold">{{ host.name }}</div>
+          <div class="text-muted small">{{ host.mac }}</div>
+        </div>
+        <div class="d-flex gap-1">
+          <form method="post" action="/hosts/{{ host.id }}/ping">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Ping {{ host.name }}">
+              <i class="bi bi-broadcast"></i>
+            </button>
+          </form>
+          <form method="post" action="/hosts/{{ host.id }}/wake">
+            <button type="submit" class="btn btn-sm btn-outline-success" aria-label="Wake {{ host.name }}">
+              <i class="bi bi-power"></i>
+            </button>
+          </form>
+          <button type="button"
+                  class="btn btn-sm btn-outline-warning"
+                  aria-label="Shutdown {{ host.name }}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#shutdownModal"
+                  data-host-id="{{ host.id }}"
+                  data-host-name="{{ host.name }}">
+            <i class="bi bi-moon-stars-fill"></i>
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  aria-label="Remove {{ host.name }}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#removeModal"
+                  data-host-id="{{ host.id }}"
+                  data-host-name="{{ host.name }}">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted">No hosts yet.</p>
+    {% endif %}
+
+    <div class="card mx-auto" style="max-width: 480px;">
+      <div class="card-body">
+        <h5 class="card-title">Add host</h5>
+        <form method="post" action="/hosts">
+          <div class="row g-2">
+            <div class="col-12 col-sm">
+              <input class="form-control {% if errors and errors.name %}is-invalid{% endif %}"
+                     name="name" placeholder="Hostname"
+                     value="{{ form.name if form else '' }}" required>
+              {% if errors and errors.name %}
+              <div class="invalid-feedback">{{ errors.name }}</div>
+              {% endif %}
+            </div>
+            <div class="col-12 col-sm">
+              <input class="form-control {% if errors and errors.mac %}is-invalid{% endif %}"
+                     name="mac" placeholder="MAC address"
+                     value="{{ form.mac if form else '' }}" required>
+              {% if errors and errors.mac %}
+              <div class="invalid-feedback">{{ errors.mac }}</div>
+              {% endif %}
+            </div>
+            <div class="col-auto">
+              <button type="submit" class="btn btn-primary" aria-label="Add host">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    </div>
+    </div>
+  </div>
+
+  <!-- Shutdown confirmation modal -->
+  <div class="modal fade" id="shutdownModal" tabindex="-1" aria-labelledby="shutdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="shutdownModalLabel">Shutdown host</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to shutdown <strong id="shutdownHostName"></strong>?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form id="shutdownForm" method="post">
+            <button type="submit" class="btn btn-warning">
+              <i class="bi bi-moon-stars-fill me-1"></i>Shutdown
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove confirmation modal -->
+  <div class="modal fade" id="removeModal" tabindex="-1" aria-labelledby="removeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="removeModalLabel">Remove host</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to remove <strong id="removeHostName"></strong>?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form id="removeForm" method="post">
+            <button type="submit" class="btn btn-danger">
+              <i class="bi bi-trash3 me-1"></i>Remove
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/vendor/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.getElementById('shutdownModal').addEventListener('show.bs.modal', function (event) {
+      const button = event.relatedTarget;
+      document.getElementById('shutdownHostName').textContent = button.dataset.hostName;
+      document.getElementById('shutdownForm').action = '/hosts/' + button.dataset.hostId + '/shutdown';
+    });
+
+    document.getElementById('removeModal').addEventListener('show.bs.modal', function (event) {
+      const button = event.relatedTarget;
+      document.getElementById('removeHostName').textContent = button.dataset.hostName;
+      document.getElementById('removeForm').action = '/hosts/' + button.dataset.hostId + '/remove';
+    });
+  </script>
+</body>
+</html>
