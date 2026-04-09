@@ -4,6 +4,5 @@
 # Verify syntax before applying:
 #   sudo visudo -cf /etc/sudoers.d/wakelet
 #
-# Replace 'www-data' with the user your FastAPI process runs as.
 
 wakelet ALL=(root) NOPASSWD: /usr/sbin/etherwake
