@@ -90,9 +90,26 @@ The `private/` directory is excluded from version control via `.gitignore`.
 
 ## Running
 
+### Manually
+
 ```bash
 source .venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+### As a systemd service
+
+```bash
+sudo cp ~/wakelet/example/wakelet.service /etc/systemd/system/wakelet.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now wakelet
+```
+
+Check status and logs:
+
+```bash
+sudo systemctl status wakelet
+sudo journalctl -u wakelet -f
 ```
 
 ---
@@ -128,6 +145,7 @@ static/vendor/
 example/
   setup_wakelet.sh       Script to configure shutdown-on-login on target hosts
   sudoers.example        Sudoers entry for etherwake
+  wakelet.service        systemd service unit file
 private/                 SSH key pair (not committed)
 hosts.db                 SQLite database (not committed)
 ```
