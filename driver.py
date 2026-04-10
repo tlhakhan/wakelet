@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import signal
 import subprocess
@@ -12,7 +11,7 @@ from services.hosts import list_hosts
 from services.network import detect_interface
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 SSH_KEY = Path("private/wakelet")
 
@@ -32,21 +31,16 @@ class HostAccessory(Accessory):
         self.outlet_in_use = outlet.get_characteristic("OutletInUse")
         self.outlet_in_use.set_value(False)
 
-    REACHABILITY_INTERVAL = 120  # seconds between ping checks
-
-    async def run(self):
-        while not self.driver.aio_stop_event.is_set():
-            proc = await asyncio.create_subprocess_exec(
-                "ping", "-c1", "-W2", self.host.name,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
-            await proc.wait()
-            reachable = proc.returncode == 0
-            self.outlet_in_use.set_value(reachable)
-            self.on_characteristic.set_value(reachable)
-            logging.debug("Reachability %s: %s", self.host.name, reachable)
-            await asyncio.sleep(self.REACHABILITY_INTERVAL)
+    @Accessory.run_at_interval(90)
+    def run(self):
+        result = subprocess.run(
+            ["ping", "-c1", "-W1", self.host.name],
+            capture_output=True,
+        )
+        reachable = result.returncode == 0
+        self.outlet_in_use.set_value(reachable)
+        self.on_characteristic.set_value(reachable)
+        logging.debug("Reachability %s: %s", self.host.name, reachable)
 
     def _set_on(self, value: bool):
         if value:
