@@ -11,7 +11,7 @@ from services.hosts import list_hosts
 from services.network import detect_interface
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 SSH_KEY = Path("private/wakelet")
 
