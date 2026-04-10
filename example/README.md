@@ -1,28 +1,42 @@
 # Deployment Guide
 
-This folder contains the files needed to configure the server running the Wakelet app and the target hosts it controls.
+This folder contains the files needed to configure the server running the Wakelet bridge and the target hosts it controls.
 
 ---
 
-## 1. Server setup — allow `etherwake` without a password
+## 1. Configure hosts
 
-The Wakelet app runs `etherwake` as `sudo` to send Wake-on-LAN packets. The web process user must be permitted to do this without a password prompt.
+Copy the example hosts file to the project root and edit it to match your environment:
+
+```bash
+cp example/hosts.yaml hosts.yaml
+```
+
+Each entry requires a hostname (must end in `.local`) and a MAC address:
+
+```yaml
+hosts:
+  - name: desktop.local
+    mac: aa:bb:cc:dd:ee:ff
+```
+
+The bridge loads this file at startup. To add or remove hosts, edit `hosts.yaml` and restart the service.
+
+---
+
+## 2. Server setup — allow `etherwake` without a password
+
+The Wakelet bridge runs `etherwake` as `sudo` to send Wake-on-LAN packets. The `wakelet` user must be permitted to do this without a password prompt.
 
 ### Steps
 
 1. Copy the example sudoers file to `/etc/sudoers.d/`:
 
    ```bash
-   sudo cp sudoers.example /etc/sudoers.d/wakelet
+   sudo cp example/sudoers.example /etc/sudoers.d/wakelet
    ```
 
-2. Open the file and replace `wakelet` on the first line with the user your FastAPI process runs as (e.g. `www-data`, `ubuntu`, or a dedicated service account):
-
-   ```bash
-   sudo nano /etc/sudoers.d/wakelet
-   ```
-
-3. Validate the syntax before relying on it:
+2. Validate the syntax before relying on it:
 
    ```bash
    sudo visudo -cf /etc/sudoers.d/wakelet
@@ -30,7 +44,7 @@ The Wakelet app runs `etherwake` as `sudo` to send Wake-on-LAN packets. The web 
 
    You should see: `... parsed OK`
 
-4. Verify the correct paths for `etherwake` and `ping` on your system:
+3. Verify the correct paths for `etherwake` and `ping` on your system:
 
    ```bash
    which etherwake
@@ -46,19 +60,20 @@ The Wakelet app runs `etherwake` as `sudo` to send Wake-on-LAN packets. The web 
 
 ---
 
-## 2. Target host setup — shutdown on SSH login
+## 3. Target host setup — shutdown on SSH login
 
-Each host you want to shut down via the Wakelet app needs a dedicated `wakelet` SSH user whose login immediately triggers `shutdown -h now`. The `setup_wakelet.sh` script handles this end-to-end.
+Each host you want to shut down via the Wakelet bridge needs a dedicated `wakelet` SSH user whose login immediately triggers `shutdown -h now`. The `setup_wakelet.sh` script handles this end-to-end.
 
 ### Prerequisites
 
 - The target host must be running Linux with `systemd` and `openssh-server`
 - You must have `sudo` / root access on the target host
-- You need the Wakelet SSH **public** key (the counterpart to `private/wakelet` on the server)
+- You need the Wakelet SSH **public** key (the counterpart to `private/wakelet` on the bridge server)
 
 ### Generate the key pair (run once on the Wakelet server)
 
 ```bash
+mkdir -p private
 ssh-keygen -t ed25519 -f private/wakelet -N ""
 ```
 
@@ -71,15 +86,8 @@ This creates:
 Copy the script and public key to the target host, then run:
 
 ```bash
-scp setup_wakelet.sh wakelet.pub user@target-host:~
-ssh user@target-host
-sudo ./setup_wakelet.sh ~/wakelet.pub
-```
-
-Or run it directly over SSH in one step:
-
-```bash
-ssh user@target-host "sudo bash -s" < setup_wakelet.sh private/wakelet.pub
+scp example/setup_wakelet.sh private/wakelet.pub user@target-host:~
+ssh user@target-host "sudo bash setup_wakelet.sh ~/wakelet.pub"
 ```
 
 ### What the script does
@@ -115,9 +123,28 @@ The target machine should begin shutting down immediately.
 
 ---
 
+## 4. Install and start the systemd service
+
+```bash
+sudo cp example/wakelet.service /etc/systemd/system/wakelet.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now wakelet
+```
+
+Check status and logs:
+
+```bash
+sudo systemctl status wakelet
+sudo journalctl -u wakelet -f
+```
+
+---
+
 ## File reference
 
 | File | Purpose |
 |------|---------|
-| `sudoers.example` | Sudoers fragment granting the app user permission to run `etherwake` without a password |
+| `hosts.yaml` | Example host list — copy to project root and edit for your environment |
+| `sudoers.example` | Sudoers fragment granting the `wakelet` user permission to run `etherwake` |
 | `setup_wakelet.sh` | Script to configure a target host with a shutdown-on-login `wakelet` user |
+| `wakelet.service` | systemd service unit file to run the bridge as a background service |

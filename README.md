@@ -1,20 +1,19 @@
 # Wakelet
 
-A small FastAPI web app for managing and controlling hosts on a local network. From the browser you can ping, wake (Wake-on-LAN), and shut down hosts by hostname and MAC address.
+A HomeKit IoT bridge for managing and controlling hosts on a local network. Hosts are exposed as HomeKit accessories, allowing you to wake and shut down machines directly from the Home app.
 
 ## Features
 
-- **Ping** — check if a host is reachable
 - **Wake** — send a Wake-on-LAN magic packet via `etherwake`
-- **Shutdown** — SSH into a host as `wakelet` user, triggering an automatic shutdown on login
-- **Manage hosts** — add and remove hosts (hostname + MAC address) stored in a local SQLite database
-- Responsive UI built with Bootstrap 5 and Bootstrap Icons
+- **Shutdown** — SSH into a host as the `wakelet` user, triggering an automatic shutdown on login
+- **Reachability** — periodically pings each host and reflects its online/offline state in HomeKit
+- **Hosts** — configured via a simple `hosts.yaml` file local to the deployment
 
 ## Requirements
 
 - Python 3.11+
 - `etherwake` installed on the server (`apt install etherwake`)
-- `fastapi[standard]`
+- `HAP-python`
 
 ---
 
@@ -46,7 +45,7 @@ source .venv/bin/activate
 ### 4. Install Python dependencies
 
 ```bash
-pip install fastapi[standard]
+pip install HAP-python pyyaml
 ```
 
 ### 5. Install etherwake
@@ -65,7 +64,7 @@ sudo cp ~/wakelet/example/sudoers.example /etc/sudoers.d/wakelet
 sudo visudo -cf /etc/sudoers.d/wakelet   # must print "parsed OK"
 ```
 
-The file already names `wakelet` as the permitted user. If the path to `etherwake` differs on your system, update it first:
+If the path to `etherwake` differs on your system, update it first:
 
 ```bash
 which etherwake   # verify path matches /usr/sbin/etherwake
@@ -81,10 +80,24 @@ ssh-keygen -t ed25519 -f private/wakelet -N ""
 ```
 
 This creates:
-- `private/wakelet` — private key used by the app to SSH into target hosts
+- `private/wakelet` — private key used by the bridge to SSH into target hosts
 - `private/wakelet.pub` — public key to be deployed to each target host
 
 The `private/` directory is excluded from version control via `.gitignore`.
+
+### 8. Configure hosts
+
+```bash
+cp example/hosts.yaml hosts.yaml
+```
+
+Edit `hosts.yaml` to match your environment. Each entry requires a hostname ending in `.local` and a MAC address:
+
+```yaml
+hosts:
+  - name: desktop.local
+    mac: aa:bb:cc:dd:ee:ff
+```
 
 ---
 
@@ -94,7 +107,7 @@ The `private/` directory is excluded from version control via `.gitignore`.
 
 ```bash
 source .venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+python driver.py
 ```
 
 ### As a systemd service
@@ -130,22 +143,16 @@ See [example/README.md](example/README.md) for full details.
 ## Project structure
 
 ```
-main.py                  FastAPI app and routes
+driver.py                HAP-python bridge entry point
 services/
-  hosts.py               SQLite CRUD for host records
-  shell.py               Async shell command execution
+  hosts.py               Loads host records from hosts.yaml
   network.py             Auto-detect network interface
-  validation.py          Hostname and MAC address validation
-templates/
-  index.html             Home page — host list and add form
-  command_result.html    Output page for ping/wake/shutdown
-static/vendor/
-  bootstrap-5.3.8-dist/  Bootstrap CSS and JS
-  bootstrap-icons-1.13.1/ Bootstrap Icons webfont
 example/
+  hosts.yaml             Example hosts configuration
   setup_wakelet.sh       Script to configure shutdown-on-login on target hosts
   sudoers.example        Sudoers entry for etherwake
   wakelet.service        systemd service unit file
 private/                 SSH key pair (not committed)
-hosts.db                 SQLite database (not committed)
+hosts.yaml               Host configuration (not committed)
+wakelet.state            HAP pairing state (not committed)
 ```
