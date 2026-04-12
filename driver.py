@@ -32,8 +32,8 @@ class HostAccessory(Accessory):
         self.outlet_in_use = outlet.get_characteristic("OutletInUse")
         self.outlet_in_use.set_value(False)
 
-    @Accessory.run_at_interval(90)
-    def run(self):
+    @Accessory.run_at_interval(120)
+    def check_reachability(self):
         result = subprocess.run(
             ["ping", "-c1", "-W1", self.host.name],
             capture_output=True,
@@ -41,7 +41,7 @@ class HostAccessory(Accessory):
         reachable = result.returncode == 0
         self.outlet_in_use.set_value(reachable)
         self.on_characteristic.set_value(reachable)
-        logging.debug("Reachability %s: %s", self.host.name, reachable)
+        logging.info("Reachability %s: %s", self.host.name, reachable)
 
     def _set_on(self, value: bool):
         if value:
