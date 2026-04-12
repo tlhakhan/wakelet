@@ -7,6 +7,7 @@ import yaml
 class Host:
     name: str
     mac: str
+    holdup_timer: int = 60
 
 
 def list_hosts(hosts_file: Path) -> list[Host]:

@@ -26,7 +26,7 @@ class HostAccessory(Accessory):
         self.host = host
         self.authorized_private_key = authorized_private_key
         self.authorized_user_name = authorized_user_name
-        self._last_on_time = None
+        self.last_on_time = None
 
         outlet = self.add_preload_service("Outlet")
         self.on_characteristic = outlet.get_characteristic("On")
@@ -34,15 +34,12 @@ class HostAccessory(Accessory):
         self.outlet_in_use = outlet.get_characteristic("OutletInUse")
         self.outlet_in_use.set_value(False)
 
+    @Accessory.run_at_interval(10)
     def run(self):
-        self.check_reachability()
-
-    @Accessory.run_at_interval(120)
-    def check_reachability(self):
-        if self._last_on_time is not None:
-            elapsed = time.monotonic() - self._last_on_time
-            if elapsed < 90:
-                logging.info("Reachability %s: holding off for %.0fs after wake", self.host.name, 90 - elapsed)
+        if self.last_on_time is not None:
+            elapsed = time.monotonic() - self.last_on_time
+            if elapsed < self.host.holdup_timer:
+                logging.info("Reachability %s: holding off for %.0fs after wake", self.host.name, self.host.holdup_timer - elapsed)
                 return
         result = subprocess.run(
             ["ping", "-c1", "-W1", self.host.name],
@@ -55,7 +52,7 @@ class HostAccessory(Accessory):
 
     def _set_on(self, value: bool):
         if value:
-            self._last_on_time = time.monotonic()
+            self.last_on_time = time.monotonic()
             command = ["sudo", "etherwake", "-b", "-D", "-i", detect_interface(), self.host.mac]
         else:
             command = [
