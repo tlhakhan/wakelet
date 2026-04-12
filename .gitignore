@@ -3,3 +3,4 @@ hosts.yaml
 __pycache__/
 *.pyc
 wakelet.state
+.venv/
