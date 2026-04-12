@@ -112,6 +112,23 @@ sudo journalctl -u wakelet -f
 
 ---
 
+## Setting up target hosts for shutdown
+
+Each host you want to shut down needs the `wakelet` SSH user configured with the bridge's public key. Run the setup script on each target host:
+
+```bash
+scp example/authorize_wakelet_shutdown.sh user@target-host:~
+scp /etc/wakelet/private/wakelet.pub user@target-host:~
+ssh user@target-host "sudo bash authorize_wakelet_shutdown.sh ~/wakelet.pub"
+```
+
+`authorize_wakelet_shutdown.sh`:
+1. Creates a locked `wakelet` user (no password login)
+2. Adds a sudoers entry allowing `wakelet` to run `shutdown -h now`
+3. Installs the public key in `authorized_keys` with a forced command — the key can only ever trigger a shutdown, nothing else
+
+---
+
 ## Running manually
 
 ```bash
@@ -128,23 +145,6 @@ All flags and their defaults:
 | `--private-dir` | `/etc/wakelet/private` | Directory for the SSH key pair |
 | `--hosts-file` | `/etc/wakelet/hosts.yaml` | Hosts configuration file |
 | `--authorized-user-name` | `wakelet` | SSH user on target hosts |
-
----
-
-## Setting up target hosts for shutdown
-
-Each host you want to shut down needs the `wakelet` SSH user configured with the bridge's public key. Run the setup script on each target host:
-
-```bash
-scp example/authorize_wakelet_shutdown.sh user@target-host:~
-scp /etc/wakelet/private/wakelet.pub user@target-host:~
-ssh user@target-host "sudo bash authorize_wakelet_shutdown.sh ~/wakelet.pub"
-```
-
-`authorize_wakelet_shutdown.sh`:
-1. Creates a locked `wakelet` user (no password login)
-2. Adds a sudoers entry allowing `wakelet` to run `shutdown -h now`
-3. Installs the public key in `authorized_keys` with a forced command — the key can only ever trigger a shutdown, nothing else
 
 ---
 
