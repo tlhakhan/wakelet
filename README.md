@@ -6,21 +6,21 @@ A HomeKit IoT bridge for managing and controlling hosts on a local network. Host
 
 ```mermaid
 graph TB
-    iPhone["📱 iPhone\nHome app"]
+    iPhone["📱 iPhone\n🏠 Home app"]
 
-    subgraph homelab["Homelab Network"]
-        subgraph pi["Raspberry Pi — Wakelet Bridge"]
-            driver["driver.py\n(HAP-python)"]
+    subgraph homelab["🏡 Homelab Network"]
+        subgraph pi["🍓 Raspberry Pi — Wakelet Bridge"]
+            driver["🐍 driver.py\n(HAP-python)"]
         end
 
-        hosts[("🖥 Managed Hosts\ndesktop · workstation · server")]
+        hosts[("🖥️ Managed Hosts\ndesktop · workstation · server")]
     end
 
-    iPhone -->|"HomeKit / HAP\nport 51826"| driver
+    iPhone -->|"🏠 HomeKit / HAP\nport 51826"| driver
 
-    driver -->|"ping -c1\n(reachability)"| hosts
-    driver -->|"etherwake\n(WoL magic packet)"| hosts
-    driver -->|"ssh wakelet@host\n(forced shutdown)"| hosts
+    driver -->|"📡 ping -c1\n(reachability)"| hosts
+    driver -->|"⚡ etherwake\n(WoL magic packet)"| hosts
+    driver -->|"🔌 ssh wakelet@host\n(forced shutdown)"| hosts
 ```
 
 ## Features
