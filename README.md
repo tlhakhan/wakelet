@@ -112,9 +112,9 @@ All flags and their defaults:
 Each host you want to shut down needs the `wakelet` SSH user configured with the bridge's public key. Run the setup script on each target host:
 
 ```bash
-scp example/setup_wakelet.sh user@target-host:~
+scp example/authorize_wakelet_shutdown.sh user@target-host:~
 scp /etc/wakelet/private/wakelet.pub user@target-host:~
-ssh user@target-host "sudo bash setup_wakelet.sh ~/wakelet.pub"
+ssh user@target-host "sudo bash authorize_wakelet_shutdown.sh ~/wakelet.pub"
 ```
 
 The script:
@@ -133,8 +133,7 @@ services/
   network.py             Interface detection and SSH key generation
 example/
   hosts.yaml             Example hosts configuration
-  setup_wakelet.sh       Script to configure shutdown user on target hosts
-  sudoers.example        Sudoers entry for etherwake (bridge host)
-  wakelet.service        systemd service unit file
+  authorize_wakelet_shutdown.sh  Script to configure shutdown user on target hosts
+  wakelet.service                systemd service unit file
   README.md              Deployment notes
 ```

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# setup_wakelet.sh — Create a restricted SSH user that shuts down the machine.
+# authorize_wakelet_shutdown.sh — Create a restricted SSH user that shuts down the machine.
 # Idempotent: safe to run multiple times.
 #
 # Usage:
-#   sudo ./setup_wakelet.sh /path/to/pubkey.pub
-#   sudo ./setup_wakelet.sh /path/to/pubkey.pub myusername
+#   sudo ./authorize_wakelet_shutdown.sh /path/to/pubkey.pub
+#   sudo ./authorize_wakelet_shutdown.sh /path/to/pubkey.pub myusername
 #
 # Arguments:
 #   $1  Path to the SSH public key file (required)
