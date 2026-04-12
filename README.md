@@ -2,7 +2,7 @@
 
 A HomeKit IoT bridge for managing and controlling hosts on a local network. Hosts are exposed as HomeKit accessories, allowing you to wake and shut down machines directly from the Home app.
 
-## Deployment diagram
+## Architecture
 
 ```mermaid
 graph TB
