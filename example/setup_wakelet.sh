@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup_wakelet.sh — Create an SSH user that shuts down the machine on login.
+# setup_wakelet.sh — Create a restricted SSH user that shuts down the machine.
 # Idempotent: safe to run multiple times.
 #
 # Usage:
@@ -16,7 +16,6 @@ set -euo pipefail
 PUBKEY_FILE="${1:-}"
 USERNAME="${2:-wakelet}"
 SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
-SSHD_CONFIG="/etc/ssh/sshd_config"
 SHUTDOWN_BIN="/sbin/shutdown"
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -37,7 +36,7 @@ grep -qE '^(ssh-|ecdsa-|sk-)' "$PUBKEY_FILE" \
   || die "File does not appear to be a valid SSH public key: $PUBKEY_FILE"
 # ──────────────────────────────────────────────────────────────────────────────
 
-info "Setting up shutdown-on-login user: ${USERNAME}"
+info "Setting up shutdown user: ${USERNAME}"
 
 # ── 1. Create user ─────────────────────────────────────────────────────────────
 if id "$USERNAME" &>/dev/null; then
@@ -59,12 +58,11 @@ if [[ -f "$SUDOERS_FILE" ]] && grep -qF "$SUDOERS_LINE" "$SUDOERS_FILE"; then
 else
   echo "$SUDOERS_LINE" > "$SUDOERS_FILE"
   chmod 440 "$SUDOERS_FILE"
-  # Validate the sudoers file before proceeding
   visudo -cf "$SUDOERS_FILE" || die "sudoers syntax check failed — aborting."
   ok "sudoers entry written to ${SUDOERS_FILE}."
 fi
 
-# ── 3. SSH authorized_keys ─────────────────────────────────────────────────────
+# ── 3. SSH authorized_keys with forced command ────────────────────────────────
 SSH_DIR="/home/${USERNAME}/.ssh"
 AUTH_KEYS="${SSH_DIR}/authorized_keys"
 
@@ -72,48 +70,18 @@ mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
 
 PUBKEY_CONTENT="$(cat "$PUBKEY_FILE")"
+FORCED_KEY="command=\"sudo ${SHUTDOWN_BIN} -h now\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ${PUBKEY_CONTENT}"
 
 # Add key only if not already present
 if [[ -f "$AUTH_KEYS" ]] && grep -qF "$PUBKEY_CONTENT" "$AUTH_KEYS"; then
   ok "Public key already in authorized_keys — skipping."
 else
-  echo "$PUBKEY_CONTENT" >> "$AUTH_KEYS"
-  ok "Public key added to ${AUTH_KEYS}."
+  echo "$FORCED_KEY" >> "$AUTH_KEYS"
+  ok "Public key with forced command added to ${AUTH_KEYS}."
 fi
 
 chmod 600 "$AUTH_KEYS"
 chown -R "${USERNAME}:${USERNAME}" "$SSH_DIR"
-
-# ── 4. sshd_config Match block ─────────────────────────────────────────────────
-MATCH_MARKER="# BEGIN wakelet-block:${USERNAME}"
-MATCH_END_MARKER="# END wakelet-block:${USERNAME}"
-
-if grep -qF "$MATCH_MARKER" "$SSHD_CONFIG"; then
-  ok "sshd_config Match block for '${USERNAME}' already present — skipping."
-else
-  # Append the Match block
-  cat >> "$SSHD_CONFIG" <<EOF
-
-${MATCH_MARKER}
-Match User ${USERNAME}
-    ForceCommand sudo ${SHUTDOWN_BIN} -h now
-    PermitTTY no
-    X11Forwarding no
-    AllowAgentForwarding no
-    AllowTcpForwarding no
-${MATCH_END_MARKER}
-EOF
-  ok "Match block appended to ${SSHD_CONFIG}."
-fi
-
-# ── 5. Validate and reload sshd ────────────────────────────────────────────────
-info "Validating sshd config..."
-sshd -t || die "sshd config validation failed — review ${SSHD_CONFIG}."
-ok "sshd config is valid."
-
-info "Reloading sshd..."
-systemctl reload ssh
-ok "sshd reloaded."
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 echo ""

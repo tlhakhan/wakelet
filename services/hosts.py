@@ -3,18 +3,15 @@ from pathlib import Path
 
 import yaml
 
-HOSTS_FILE = Path("hosts.yaml")
-
-
 @dataclass
 class Host:
     name: str
     mac: str
 
 
-def list_hosts() -> list[Host]:
-    if not HOSTS_FILE.exists():
+def list_hosts(hosts_file: Path) -> list[Host]:
+    if not hosts_file.exists():
         return []
-    with HOSTS_FILE.open() as f:
+    with hosts_file.open() as f:
         data = yaml.safe_load(f)
     return [Host(**entry) for entry in data.get("hosts", [])]

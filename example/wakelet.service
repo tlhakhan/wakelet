@@ -4,10 +4,12 @@ After=network.target
 
 [Service]
 Type=simple
-User=wakelet
-Group=wakelet
-WorkingDirectory=/home/wakelet/wakelet
-ExecStart=/home/wakelet/wakelet/.venv/bin/python driver.py
+User=root
+Group=root
+WorkingDirectory=/opt/wakelet
+ExecStartPre=/bin/mkdir -p /var/lib/wakelet
+ExecStartPre=/bin/mkdir -p /etc/wakelet/private
+ExecStart=/opt/wakelet/.venv/bin/python driver.py
 Restart=on-failure
 RestartSec=5
 

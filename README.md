@@ -5,93 +5,55 @@ A HomeKit IoT bridge for managing and controlling hosts on a local network. Host
 ## Features
 
 - **Wake** — send a Wake-on-LAN magic packet via `etherwake`
-- **Shutdown** — SSH into a host as the `wakelet` user, triggering an automatic shutdown on login
+- **Shutdown** — SSH into a host and trigger a shutdown via a restricted `wakelet` user
 - **Reachability** — periodically pings each host and reflects its online/offline state in HomeKit
-- **Hosts** — configured via a simple `hosts.yaml` file local to the deployment
+- **Hosts** — configured via a simple `hosts.yaml` file
 
 ## Requirements
 
 - Python 3.11+
-- `etherwake` installed on the server (`apt install etherwake`)
-- `HAP-python`
+- `etherwake` installed on the bridge host (`apt install etherwake`)
+- `HAP-python`, `pyyaml`, `cryptography` Python packages
 
 ---
 
-## Server installation
+## Bridge installation
 
-### 1. Create a dedicated system user
+The bridge runs as root to allow `etherwake` to send raw Ethernet frames without a sudoers entry.
 
-```bash
-sudo useradd -r -m -s /bin/bash wakelet
-sudo -i -u wakelet
-```
-
-All subsequent steps run as the `wakelet` user unless stated otherwise.
-
-### 2. Clone the repository
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/tlhakhan/wakelet.git ~/wakelet
-cd ~/wakelet
+sudo git clone https://github.com/tlhakhan/wakelet.git /opt/wakelet
+cd /opt/wakelet
 ```
 
-### 3. Create and activate a virtual environment
+### 2. Create and activate a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 4. Install Python dependencies
+### 3. Install Python dependencies
 
 ```bash
-pip install HAP-python pyyaml
+pip install HAP-python pyyaml cryptography
 ```
 
-### 5. Install etherwake
-
-Exit back to a sudo-capable user for this step:
+### 4. Install etherwake
 
 ```bash
-exit   # back to your admin user
 sudo apt install etherwake
 ```
 
-### 6. Configure sudo access for etherwake
+### 5. Configure hosts
 
 ```bash
-sudo cp ~/wakelet/example/sudoers.example /etc/sudoers.d/wakelet
-sudo visudo -cf /etc/sudoers.d/wakelet   # must print "parsed OK"
+cp example/hosts.yaml /etc/wakelet/hosts.yaml
 ```
 
-If the path to `etherwake` differs on your system, update it first:
-
-```bash
-which etherwake   # verify path matches /usr/sbin/etherwake
-```
-
-### 7. Generate the SSH key pair
-
-```bash
-sudo -i -u wakelet   # switch back to wakelet user
-cd ~/wakelet
-mkdir -p private
-ssh-keygen -t ed25519 -f private/wakelet -N ""
-```
-
-This creates:
-- `private/wakelet` — private key used by the bridge to SSH into target hosts
-- `private/wakelet.pub` — public key to be deployed to each target host
-
-The `private/` directory is excluded from version control via `.gitignore`.
-
-### 8. Configure hosts
-
-```bash
-cp example/hosts.yaml hosts.yaml
-```
-
-Edit `hosts.yaml` to match your environment. Each entry requires a hostname ending in `.local` and a MAC address:
+Edit `/etc/wakelet/hosts.yaml` to match your environment:
 
 ```yaml
 hosts:
@@ -99,21 +61,20 @@ hosts:
     mac: aa:bb:cc:dd:ee:ff
 ```
 
----
+### 6. SSH key pair
 
-## Running
+The bridge automatically generates an Ed25519 SSH key pair on first startup at `/etc/wakelet/private/wakelet`. No manual key generation is needed.
 
-### Manually
+After first startup, copy the public key to each target host:
 
 ```bash
-source .venv/bin/activate
-python driver.py
+cat /etc/wakelet/private/wakelet.pub
 ```
 
-### As a systemd service
+### 7. Install as a systemd service
 
 ```bash
-sudo cp ~/wakelet/example/wakelet.service /etc/systemd/system/wakelet.service
+sudo cp /opt/wakelet/example/wakelet.service /etc/systemd/system/wakelet.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now wakelet
 ```
@@ -127,32 +88,53 @@ sudo journalctl -u wakelet -f
 
 ---
 
-## Setting up target hosts for shutdown
-
-Each host you want to shut down must be configured with a `wakelet` SSH user whose login immediately triggers a shutdown. Use the setup script with the public key generated above:
+## Running manually
 
 ```bash
-scp example/setup_wakelet.sh private/wakelet.pub user@target-host:~
+cd /opt/wakelet
+source .venv/bin/activate
+python driver.py
+```
+
+All flags and their defaults:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--state-file` | `/var/lib/wakelet/wakelet.state` | HAP pairing state file |
+| `--private-dir` | `/etc/wakelet/private` | Directory for the SSH key pair |
+| `--hosts-file` | `/etc/wakelet/hosts.yaml` | Hosts configuration file |
+| `--authorized-user-name` | `wakelet` | SSH user on target hosts |
+
+---
+
+## Setting up target hosts for shutdown
+
+Each host you want to shut down needs the `wakelet` SSH user configured with the bridge's public key. Run the setup script on each target host:
+
+```bash
+scp example/setup_wakelet.sh user@target-host:~
+scp /etc/wakelet/private/wakelet.pub user@target-host:~
 ssh user@target-host "sudo bash setup_wakelet.sh ~/wakelet.pub"
 ```
 
-See [example/README.md](example/README.md) for full details.
+The script:
+1. Creates a locked `wakelet` user (no password login)
+2. Adds a sudoers entry allowing `wakelet` to run `shutdown -h now`
+3. Installs the public key in `authorized_keys` with a forced command — the key can only ever trigger a shutdown, nothing else
 
 ---
 
 ## Project structure
 
 ```
-driver.py                HAP-python bridge entry point
+driver.py                Entry point — HomeKit bridge
 services/
   hosts.py               Loads host records from hosts.yaml
-  network.py             Auto-detect network interface
+  network.py             Interface detection and SSH key generation
 example/
   hosts.yaml             Example hosts configuration
-  setup_wakelet.sh       Script to configure shutdown-on-login on target hosts
-  sudoers.example        Sudoers entry for etherwake
+  setup_wakelet.sh       Script to configure shutdown user on target hosts
+  sudoers.example        Sudoers entry for etherwake (bridge host)
   wakelet.service        systemd service unit file
-private/                 SSH key pair (not committed)
-hosts.yaml               Host configuration (not committed)
-wakelet.state            HAP pairing state (not committed)
+  README.md              Deployment notes
 ```

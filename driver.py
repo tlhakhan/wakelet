@@ -1,3 +1,4 @@
+import argparse
 import logging
 import signal
 import subprocess
@@ -8,12 +9,10 @@ from pyhap.accessory_driver import AccessoryDriver
 from pyhap.const import CATEGORY_OUTLET
 
 from services.hosts import list_hosts
-from services.network import detect_interface
+from services.network import detect_interface, ensure_ssh_key
 
 
 logging.basicConfig(level=logging.INFO)
-
-SSH_KEY = Path("private/wakelet")
 
 
 class HostAccessory(Accessory):
@@ -21,9 +20,11 @@ class HostAccessory(Accessory):
 
     category = CATEGORY_OUTLET
 
-    def __init__(self, driver, host):
+    def __init__(self, driver, host, authorized_private_key: Path, authorized_user_name: str = "wakelet"):
         super().__init__(driver, host.name)
         self.host = host
+        self.authorized_private_key = authorized_private_key
+        self.authorized_user_name = authorized_user_name
 
         outlet = self.add_preload_service("Outlet")
         self.on_characteristic = outlet.get_characteristic("On")
@@ -48,11 +49,11 @@ class HostAccessory(Accessory):
         else:
             command = [
                 "ssh",
-                "-i", str(SSH_KEY),
+                "-i", str(self.authorized_private_key),
                 "-o", "StrictHostKeyChecking=no",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=1",
-                "-l", "wakelet",
+                "-l", self.authorized_user_name,
                 self.host.name
             ]
         logging.info("Running: %s", " ".join(command))
@@ -60,7 +61,12 @@ class HostAccessory(Accessory):
         logging.info("Result for %s: returncode=%s", self.host.name, result.returncode)
 
 
-def get_bridge(driver: AccessoryDriver) -> Bridge:
+def get_bridge(
+    driver: AccessoryDriver,
+    authorized_private_key: Path,
+    authorized_user_name: str,
+    hosts_file: Path,
+) -> Bridge:
     bridge = Bridge(driver, "Wakelet")
 
     info = bridge.get_service("AccessoryInformation")
@@ -69,15 +75,43 @@ def get_bridge(driver: AccessoryDriver) -> Bridge:
     info.get_characteristic("SerialNumber").set_value("WKL-001")
     info.get_characteristic("FirmwareRevision").set_value("1.0.0")
 
-    for host in list_hosts():
-        bridge.add_accessory(HostAccessory(driver, host))
+    for host in list_hosts(hosts_file):
+        bridge.add_accessory(HostAccessory(driver, host, authorized_private_key, authorized_user_name))
 
     return bridge
 
 
 if __name__ == "__main__":
-    driver = AccessoryDriver(port=51826, persist_file="wakelet.state")
-    driver.add_accessory(accessory=get_bridge(driver))
+    parser = argparse.ArgumentParser(description="Wakelet HomeKit bridge")
+    parser.add_argument(
+        "--state-file",
+        type=Path,
+        default=Path("/var/lib/wakelet/wakelet.state"),
+        help="Path to the HAP state file (default: /var/lib/wakelet/wakelet.state)",
+    )
+    parser.add_argument(
+        "--private-dir",
+        type=Path,
+        default=Path("/etc/wakelet/private"),
+        help="Directory for the SSH key pair (default: /etc/wakelet/private)",
+    )
+    parser.add_argument(
+        "--hosts-file",
+        type=Path,
+        default=Path("/etc/wakelet/hosts.yaml"),
+        help="Path to the hosts YAML file (default: /etc/wakelet/hosts.yaml)",
+    )
+    parser.add_argument(
+        "--authorized-user-name",
+        default="wakelet",
+        help="SSH user on target hosts (default: wakelet)",
+    )
+    args = parser.parse_args()
+
+    authorized_private_key, authorized_public_key = ensure_ssh_key(args.private_dir / "wakelet")
+
+    driver = AccessoryDriver(port=51826, persist_file=str(args.state_file))
+    driver.add_accessory(accessory=get_bridge(driver, authorized_private_key, args.authorized_user_name, args.hosts_file))
 
     signal.signal(signal.SIGTERM, driver.signal_handler)
 
