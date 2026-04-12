@@ -129,6 +129,43 @@ ssh user@target-host "sudo bash authorize_wakelet_shutdown.sh ~/wakelet.pub"
 
 ---
 
+## Troubleshooting
+
+### Wake-on-LAN not working
+
+Wake-on-LAN requires configuration at two levels:
+
+**1. BIOS / UEFI**
+
+Enable Wake-on-LAN in the host's BIOS/UEFI settings. The option is typically found under *Power Management* and may be labelled *Wake on LAN*, *Power On By PCI-E*, or similar. This varies by motherboard.
+
+**2. OS — netplan**
+
+The network interface must have `wakeonlan: true` set. Example netplan config:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    wired:
+      match:
+        name: "e[nt]*"
+      dhcp4: true
+      wakeonlan: true
+```
+
+**3. Verify with ethtool**
+
+After applying the netplan config, confirm Wake-on-LAN is active on the interface:
+
+```bash
+sudo ethtool <interface> | grep -i wake
+```
+
+The output should show `Wake-on: g` (magic packet enabled). `Wake-on: d` means it is disabled.
+
+---
+
 ## Running manually
 
 ```bash
