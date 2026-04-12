@@ -13,26 +13,14 @@ graph TB
             driver["driver.py\n(HAP-python)"]
         end
 
-        subgraph hosts["Managed Hosts"]
-            host1["🖥 desktop-1.local"]
-            host2["🖥 workstation-1.local"]
-            host3["🖥 server-1.local"]
-        end
+        hosts[("🖥 Managed Hosts\ndesktop · workstation · server")]
     end
 
     iPhone -->|"HomeKit / HAP\nport 51826"| driver
 
-    driver -->|"ping -c1\n(reachability)"| host1
-    driver -->|"ping -c1\n(reachability)"| host2
-    driver -->|"ping -c1\n(reachability)"| host3
-
-    driver -->|"etherwake\n(WoL magic packet)"| host1
-    driver -->|"etherwake\n(WoL magic packet)"| host2
-    driver -->|"etherwake\n(WoL magic packet)"| host3
-
-    driver -->|"ssh wakelet@host\n(forced shutdown)"| host1
-    driver -->|"ssh wakelet@host\n(forced shutdown)"| host2
-    driver -->|"ssh wakelet@host\n(forced shutdown)"| host3
+    driver -->|"ping -c1\n(reachability)"| hosts
+    driver -->|"etherwake\n(WoL magic packet)"| hosts
+    driver -->|"ssh wakelet@host\n(forced shutdown)"| hosts
 ```
 
 ## Features
