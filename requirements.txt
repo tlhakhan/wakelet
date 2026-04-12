@@ -1,2 +1,4 @@
 HAP-python==5.0.0
 PyYAML==6.0.3
+base36==0.1.1
+qrcode==8.2
