@@ -12,8 +12,11 @@ A HomeKit IoT bridge for managing and controlling hosts on a local network. Host
 ## Requirements
 
 - Python 3.11+
-- `etherwake` installed on the bridge host (`apt install etherwake`)
-- `HAP-python`, `pyyaml`, `cryptography` Python packages
+- System tools on the bridge host:
+  - `etherwake` (`apt install etherwake`)
+  - `ssh` (`apt install openssh-client`)
+  - `ping` (`apt install iputils-ping`)
+- Python packages: see `requirements.txt`
 
 ---
 
@@ -38,7 +41,7 @@ source .venv/bin/activate
 ### 3. Install Python dependencies
 
 ```bash
-pip install HAP-python pyyaml cryptography
+pip install -r requirements.txt
 ```
 
 ### 4. Install etherwake
@@ -117,7 +120,7 @@ scp /etc/wakelet/private/wakelet.pub user@target-host:~
 ssh user@target-host "sudo bash authorize_wakelet_shutdown.sh ~/wakelet.pub"
 ```
 
-The script:
+`authorize_wakelet_shutdown.sh`:
 1. Creates a locked `wakelet` user (no password login)
 2. Adds a sudoers entry allowing `wakelet` to run `shutdown -h now`
 3. Installs the public key in `authorized_keys` with a forced command — the key can only ever trigger a shutdown, nothing else
