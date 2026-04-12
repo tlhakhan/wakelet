@@ -39,7 +39,7 @@ class HostAccessory(Accessory):
         if self.last_on_time is not None:
             elapsed = time.monotonic() - self.last_on_time
             if elapsed < self.host.holdup_timer:
-                logging.info("Reachability %s: holding off for %.0fs after wake", self.host.name, self.host.holdup_timer - elapsed)
+                logging.info("Reachability %s: holding off for %.0fs after power on", self.host.name, self.host.holdup_timer - elapsed)
                 return
         result = subprocess.run(
             ["ping", "-c1", "-W1", self.host.name],

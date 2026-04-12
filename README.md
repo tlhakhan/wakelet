@@ -74,7 +74,7 @@ sudo apt install etherwake
 ### 5. Configure hosts
 
 ```bash
-cp example/hosts.yaml /etc/wakelet/hosts.yaml
+cp docs/hosts.yaml /etc/wakelet/hosts.yaml
 ```
 
 Edit `/etc/wakelet/hosts.yaml` to match your environment:
@@ -98,7 +98,7 @@ cat /etc/wakelet/private/wakelet.pub
 ### 7. Install as a systemd service
 
 ```bash
-sudo cp /opt/wakelet/example/wakelet.service /etc/systemd/system/wakelet.service
+sudo cp /opt/wakelet/docs/wakelet.service /etc/systemd/system/wakelet.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now wakelet
 ```
@@ -117,7 +117,7 @@ sudo journalctl -u wakelet -f
 Each host you want to shut down needs the `wakelet` SSH user configured with the bridge's public key. Run the setup script on each target host:
 
 ```bash
-scp example/authorize_wakelet_shutdown.sh user@target-host:~
+scp docs/authorize_wakelet_shutdown.sh user@target-host:~
 scp /etc/wakelet/private/wakelet.pub user@target-host:~
 ssh user@target-host "sudo bash authorize_wakelet_shutdown.sh ~/wakelet.pub"
 ```
@@ -192,7 +192,7 @@ driver.py                Entry point — HomeKit bridge
 services/
   hosts.py               Loads host records from hosts.yaml
   network.py             Interface detection and SSH key generation
-example/
+docs/
   hosts.yaml             Example hosts configuration
   authorize_wakelet_shutdown.sh  Script to configure shutdown user on target hosts
   wakelet.service                systemd service unit file
