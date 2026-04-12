@@ -2,6 +2,39 @@
 
 A HomeKit IoT bridge for managing and controlling hosts on a local network. Hosts are exposed as HomeKit accessories, allowing you to wake and shut down machines directly from the Home app.
 
+## Deployment diagram
+
+```mermaid
+graph TB
+    iPhone["📱 iPhone\nHome app"]
+
+    subgraph homelab["Homelab Network"]
+        subgraph pi["Raspberry Pi — Wakelet Bridge"]
+            driver["driver.py\n(HAP-python)"]
+        end
+
+        subgraph hosts["Managed Hosts"]
+            host1["🖥 desktop-1.local"]
+            host2["🖥 workstation-1.local"]
+            host3["🖥 server-1.local"]
+        end
+    end
+
+    iPhone -->|"HomeKit / HAP\nport 51826"| driver
+
+    driver -->|"ping -c1\n(reachability)"| host1
+    driver -->|"ping -c1\n(reachability)"| host2
+    driver -->|"ping -c1\n(reachability)"| host3
+
+    driver -->|"etherwake\n(WoL magic packet)"| host1
+    driver -->|"etherwake\n(WoL magic packet)"| host2
+    driver -->|"etherwake\n(WoL magic packet)"| host3
+
+    driver -->|"ssh wakelet@host\n(forced shutdown)"| host1
+    driver -->|"ssh wakelet@host\n(forced shutdown)"| host2
+    driver -->|"ssh wakelet@host\n(forced shutdown)"| host3
+```
+
 ## Features
 
 - **Wake** — send a Wake-on-LAN magic packet via `etherwake`
