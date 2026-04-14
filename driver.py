@@ -44,6 +44,7 @@ class HostAccessory(Accessory):
         result = subprocess.run(
             ["ping", "-c1", "-W1", self.host.name],
             capture_output=True,
+            timeout=5,
         )
         reachable = result.returncode == 0
         self.outlet_in_use.set_value(reachable)
@@ -65,7 +66,7 @@ class HostAccessory(Accessory):
                 self.host.name
             ]
         logging.info("Running: %s", " ".join(command))
-        result = subprocess.run(command, capture_output=True, text=True)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=5)
         logging.info("Result for %s: returncode=%s", self.host.name, result.returncode)
 
 
@@ -95,7 +96,7 @@ class UPSAccessory(Accessory):
                 ["upsc", self._nut_target],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=5,
             )
             if result.returncode != 0:
                 logging.warning("UPS poll failed (rc=%s): %s", result.returncode, result.stderr.strip())
