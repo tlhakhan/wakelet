@@ -11,14 +11,11 @@ graph TB
     subgraph homelab["🏡 Homelab Network"]
         subgraph pi["🍓 Raspberry Pi — Wakelet Bridge"]
             driver["🐍 driver.py\n(HAP-python)"]
+            nut["⚡ NUT Server\n(port 3493)"]
         end
 
         hosts[("🖥️ Managed Hosts\ndesktop · workstation · server")]
-
-        subgraph nut_host["🖥️ NUT Host"]
-            nut["⚡ NUT Server\n(port 3493)"]
-            ups["🔋 UPS\n(APC Smart-UPS)"]
-        end
+        ups["🔋 UPS\n(APC Smart-UPS)"]
     end
 
     iPhone -->|"🏠 HomeKit / HAP\nport 51826"| driver
