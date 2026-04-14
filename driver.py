@@ -39,14 +39,21 @@ class HostAccessory(Accessory):
         if self.last_on_time is not None:
             elapsed = time.monotonic() - self.last_on_time
             if elapsed < self.host.holdup_timer:
-                logging.info("Reachability %s: holding off for %.0fs after power on", self.host.name, self.host.holdup_timer - elapsed)
+                logging.info("Reachability %s: holding up for %.0fs after power on", self.host.name, self.host.holdup_timer - elapsed)
+                self.on_characteristic.set_value(True)
                 return
-        result = subprocess.run(
-            ["ping", "-c1", "-W1", self.host.name],
-            capture_output=True,
-            timeout=5,
-        )
-        reachable = result.returncode == 0
+        try:
+            result = subprocess.run(
+                ["ping", "-c1", "-W1", self.host.name],
+                capture_output=True,
+                timeout=5,
+            )
+            reachable = result.returncode == 0
+        except subprocess.TimeoutExpired:
+            logging.warning("Reachability %s: ping timed out; setting to false", self.host.name)
+            self.outlet_in_use.set_value(False)
+            self.on_characteristic.set_value(False)
+            return
         self.outlet_in_use.set_value(reachable)
         self.on_characteristic.set_value(reachable)
         logging.info("Reachability %s: %s", self.host.name, reachable)
@@ -66,8 +73,13 @@ class HostAccessory(Accessory):
                 self.host.name
             ]
         logging.info("Running: %s", " ".join(command))
-        result = subprocess.run(command, capture_output=True, text=True, timeout=5)
-        logging.info("Result for %s: returncode=%s", self.host.name, result.returncode)
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+            logging.info("Result for %s: returncode=%s", self.host.name, result.returncode)
+        except subprocess.TimeoutExpired:
+            logging.warning("Command timed out for %s; setting to false", self.host.name)
+            self.outlet_in_use.set_value(False)
+            self.on_characteristic.set_value(False)
 
 
 class UPSAccessory(Accessory):
@@ -119,6 +131,10 @@ class UPSAccessory(Accessory):
             self.status_low_battery.set_value(1 if low_battery else 0)
 
             logging.info("UPS status=%s charge=%s%%", status, data.get("battery.charge", "?"))
+        except subprocess.TimeoutExpired:
+            logging.warning("UPS poll timed out; setting to false")
+            self.on_characteristic.set_value(False)
+            self.outlet_in_use.set_value(False)
         except Exception:
             logging.exception("Error polling UPS via NUT; skipping cycle")
 
