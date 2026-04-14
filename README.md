@@ -11,11 +11,10 @@ graph TB
     subgraph homelab["🏡 Homelab Network"]
         subgraph pi["🍓 Raspberry Pi — Wakelet Bridge"]
             driver["🐍 driver.py\n(HAP-python)"]
-            nut["⚡ NUT Server\n(port 3493)"]
         end
 
         hosts[("🖥️ Managed Hosts\ndesktop · workstation · server")]
-        ups["🔋 UPS\n(APC Smart-UPS)"]
+        ups[("🔋 UPS\n(APC Smart-UPS)")]
     end
 
     iPhone -->|"🏠 HomeKit / HAP\nport 51826"| driver
@@ -23,8 +22,7 @@ graph TB
     driver -->|"📡 ping -c1\n(reachability)"| hosts
     driver -->|"⚡ etherwake\n(WoL magic packet)"| hosts
     driver -->|"🔌 ssh wakelet@host\n(forced shutdown)"| hosts
-    driver -->|"🔋 upsc\n(every 10 s)"| nut
-    nut -->|"monitors"| ups
+    driver -->|"🔋 upsc\n(every 10 s)"| ups
 ```
 
 ## Features
