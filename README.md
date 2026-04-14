@@ -14,6 +14,11 @@ graph TB
         end
 
         hosts[("🖥️ Managed Hosts\ndesktop · workstation · server")]
+
+        subgraph nut_host["🖥️ NUT Host"]
+            nut["⚡ NUT Server\n(port 3493)"]
+            ups["🔋 UPS\n(APC Smart-UPS)"]
+        end
     end
 
     iPhone -->|"🏠 HomeKit / HAP\nport 51826"| driver
@@ -21,6 +26,8 @@ graph TB
     driver -->|"📡 ping -c1\n(reachability)"| hosts
     driver -->|"⚡ etherwake\n(WoL magic packet)"| hosts
     driver -->|"🔌 ssh wakelet@host\n(forced shutdown)"| hosts
+    driver -->|"🔋 upsc\n(every 10 s)"| nut
+    nut -->|"monitors"| ups
 ```
 
 ## Features
@@ -28,7 +35,7 @@ graph TB
 - **Wake** — send a Wake-on-LAN magic packet via `etherwake`
 - **Shutdown** — SSH into a host and trigger a shutdown via a restricted `wakelet` user
 - **Reachability** — periodically pings each host and reflects its online/offline state in HomeKit
-- **UPS monitoring** — polls NUT every 30 s and exposes battery level, charging state, and low-battery status in HomeKit
+- **UPS monitoring** — polls NUT every 10 s and exposes battery level, charging state, and low-battery status in HomeKit
 - **Registry** — all accessories configured via a single `registry.yaml` file
 
 ## Requirements
