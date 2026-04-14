@@ -4,15 +4,17 @@ This folder contains the files needed to configure the Wakelet bridge and the ta
 
 ---
 
-## 1. Configure hosts
+## 1. Configure the registry
 
-Copy the example hosts file and edit it to match your environment:
+Copy the example registry file and edit it to match your environment:
 
 ```bash
-cp docs/hosts.yaml /etc/wakelet/hosts.yaml
+cp docs/registry.yaml /etc/wakelet/registry.yaml
 ```
 
-Each entry requires a hostname and a MAC address. The `holdup_timer` field is optional and controls how many seconds to wait after a power-on command before checking reachability (defaults to 60 seconds):
+### Hosts
+
+Each host entry requires a hostname and a MAC address. The `holdup_timer` field is optional and controls how many seconds to wait after a power-on command before checking reachability (defaults to 60 seconds):
 
 ```yaml
 hosts:
@@ -23,7 +25,19 @@ hosts:
     holdup_timer: 90
 ```
 
-The bridge loads this file at startup. To add or remove hosts, edit the file and restart the service.
+### UPS
+
+To expose a UPS monitored by NUT, add a `ups` section. Each entry requires the NUT device name (`nut_name`) and a HomeKit display name (`display_name`). `nut_host` and `nut_port` are optional and default to `localhost` and `3493`:
+
+```yaml
+ups:
+  - nut_name: apc
+    display_name: APC Smart-UPS C 1500
+    nut_host: localhost
+    nut_port: 3493
+```
+
+The bridge loads this file at startup. To add or remove entries, edit the file and restart the service.
 
 ---
 
@@ -97,6 +111,6 @@ sudo journalctl -u wakelet -f
 
 | File | Purpose |
 |------|---------|
-| `hosts.yaml` | Example host list |
+| `registry.yaml` | Example registry (hosts and UPS entries) |
 | `authorize_wakelet_shutdown.sh` | Script to configure a target host with a restricted shutdown user |
 | `wakelet.service` | systemd service unit file to run the bridge |

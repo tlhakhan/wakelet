@@ -9,7 +9,7 @@ from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
 from pyhap.const import CATEGORY_OUTLET
 
-from services.hosts import list_hosts
+from services.registry import list_hosts, list_ups, UPS
 from services.network import detect_interface, ensure_ssh_key
 
 
@@ -69,11 +69,63 @@ class HostAccessory(Accessory):
         logging.info("Result for %s: returncode=%s", self.host.name, result.returncode)
 
 
+class UPSAccessory(Accessory):
+    """HomeKit Outlet accessory for an APC Smart-UPS C 1500 monitored via NUT."""
+
+    category = CATEGORY_OUTLET
+
+    def __init__(self, driver, ups: UPS):
+        super().__init__(driver, ups.display_name)
+        self._nut_target = f"{ups.nut_name}@{ups.nut_host}:{ups.nut_port}"
+
+        outlet = self.add_preload_service("Outlet")
+        self.char_on = outlet.get_characteristic("On")
+        self.char_outlet_in_use = outlet.get_characteristic("OutletInUse")
+
+        battery = self.add_preload_service("BatteryService")
+        self.char_battery_level = battery.get_characteristic("BatteryLevel")
+        self.char_charging_state = battery.get_characteristic("ChargingState")
+        self.char_status_low_battery = battery.get_characteristic("StatusLowBattery")
+
+    @Accessory.run_at_interval(30)
+    def run(self):
+        try:
+            result = subprocess.run(
+                ["upsc", self._nut_target],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                logging.warning("UPS poll failed (rc=%s): %s", result.returncode, result.stderr.strip())
+                return
+
+            data = {}
+            for line in result.stdout.splitlines():
+                if ": " in line:
+                    key, _, value = line.partition(": ")
+                    data[key.strip()] = value.strip()
+
+            status = data.get("ups.status", "")
+            on_line = "OL" in status
+            low_battery = "LB" in status
+
+            self.char_on.set_value(on_line)
+            self.char_outlet_in_use.set_value(on_line)
+            self.char_battery_level.set_value(int(data.get("battery.charge", 0)))
+            self.char_charging_state.set_value(1 if on_line else 0)
+            self.char_status_low_battery.set_value(1 if low_battery else 0)
+
+            logging.info("UPS status=%s charge=%s%%", status, data.get("battery.charge", "?"))
+        except Exception:
+            logging.exception("Error polling UPS via NUT; skipping cycle")
+
+
 def get_bridge(
     driver: AccessoryDriver,
     authorized_private_key: Path,
     authorized_user_name: str,
-    hosts_file: Path,
+    registry_file: Path,
 ) -> Bridge:
     bridge = Bridge(driver, "Wakelet")
 
@@ -83,8 +135,11 @@ def get_bridge(
     info.get_characteristic("SerialNumber").set_value("WKL-001")
     info.get_characteristic("FirmwareRevision").set_value("1.0.0")
 
-    for host in list_hosts(hosts_file):
+    for host in list_hosts(registry_file):
         bridge.add_accessory(HostAccessory(driver, host, authorized_private_key, authorized_user_name))
+
+    for ups in list_ups(registry_file):
+        bridge.add_accessory(UPSAccessory(driver, ups))
 
     return bridge
 
@@ -104,10 +159,10 @@ if __name__ == "__main__":
         help="Directory for the SSH key pair (default: /etc/wakelet/private)",
     )
     parser.add_argument(
-        "--hosts-file",
+        "--registry-file",
         type=Path,
-        default=Path("/etc/wakelet/hosts.yaml"),
-        help="Path to the hosts YAML file (default: /etc/wakelet/hosts.yaml)",
+        default=Path("/etc/wakelet/registry.yaml"),
+        help="Path to the registry YAML file (default: /etc/wakelet/registry.yaml)",
     )
     parser.add_argument(
         "--authorized-user-name",
@@ -119,7 +174,7 @@ if __name__ == "__main__":
     authorized_private_key, authorized_public_key = ensure_ssh_key(args.private_dir / "wakelet")
 
     driver = AccessoryDriver(port=51826, persist_file=str(args.state_file))
-    driver.add_accessory(accessory=get_bridge(driver, authorized_private_key, args.authorized_user_name, args.hosts_file))
+    driver.add_accessory(accessory=get_bridge(driver, authorized_private_key, args.authorized_user_name, args.registry_file))
 
     signal.signal(signal.SIGTERM, driver.signal_handler)
 

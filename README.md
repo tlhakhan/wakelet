@@ -28,7 +28,8 @@ graph TB
 - **Wake** — send a Wake-on-LAN magic packet via `etherwake`
 - **Shutdown** — SSH into a host and trigger a shutdown via a restricted `wakelet` user
 - **Reachability** — periodically pings each host and reflects its online/offline state in HomeKit
-- **Hosts** — configured via a simple `hosts.yaml` file
+- **UPS monitoring** — polls NUT every 30 s and exposes battery level, charging state, and low-battery status in HomeKit
+- **Registry** — all accessories configured via a single `registry.yaml` file
 
 ## Requirements
 
@@ -37,6 +38,7 @@ graph TB
   - `etherwake` (`apt install etherwake`)
   - `ssh` (`apt install openssh-client`)
   - `ping` (`apt install iputils-ping`)
+  - `nut-client` (`apt install nut-client`) — for UPS monitoring
 - Python packages: see `requirements.txt`
 
 ---
@@ -71,18 +73,22 @@ pip install -r requirements.txt
 sudo apt install etherwake
 ```
 
-### 5. Configure hosts
+### 5. Configure the registry
 
 ```bash
-cp docs/hosts.yaml /etc/wakelet/hosts.yaml
+cp docs/registry.yaml /etc/wakelet/registry.yaml
 ```
 
-Edit `/etc/wakelet/hosts.yaml` to match your environment:
+Edit `/etc/wakelet/registry.yaml` to match your environment:
 
 ```yaml
 hosts:
   - name: desktop.local
     mac: aa:bb:cc:dd:ee:ff
+
+ups:
+  - nut_name: apc
+    display_name: APC Smart-UPS C 1500
 ```
 
 ### 6. SSH key pair
@@ -180,7 +186,7 @@ All flags and their defaults:
 |------|---------|-------------|
 | `--state-file` | `/var/lib/wakelet/wakelet.state` | HAP pairing state file |
 | `--private-dir` | `/etc/wakelet/private` | Directory for the SSH key pair |
-| `--hosts-file` | `/etc/wakelet/hosts.yaml` | Hosts configuration file |
+| `--registry-file` | `/etc/wakelet/registry.yaml` | Registry configuration file |
 | `--authorized-user-name` | `wakelet` | SSH user on target hosts |
 
 ---
@@ -190,10 +196,10 @@ All flags and their defaults:
 ```
 driver.py                Entry point — HomeKit bridge
 services/
-  hosts.py               Loads host records from hosts.yaml
+  registry.py            Loads host and UPS records from registry.yaml
   network.py             Interface detection and SSH key generation
 docs/
-  hosts.yaml             Example hosts configuration
+  registry.yaml          Example registry configuration
   authorize_wakelet_shutdown.sh  Script to configure shutdown user on target hosts
   wakelet.service                systemd service unit file
   README.md              Deployment notes
