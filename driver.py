@@ -79,15 +79,16 @@ class UPSAccessory(Accessory):
         self._nut_target = f"{ups.nut_name}@{ups.nut_host}:{ups.nut_port}"
 
         outlet = self.add_preload_service("Outlet")
-        self.char_on = outlet.get_characteristic("On")
-        self.char_outlet_in_use = outlet.get_characteristic("OutletInUse")
+        self.on_characteristic = outlet.get_characteristic("On")
+        self.on_characteristic.setter_callback = lambda _: self.on_characteristic.set_value(True)
+        self.outlet_in_use = outlet.get_characteristic("OutletInUse")
 
         battery = self.add_preload_service("BatteryService")
-        self.char_battery_level = battery.get_characteristic("BatteryLevel")
-        self.char_charging_state = battery.get_characteristic("ChargingState")
-        self.char_status_low_battery = battery.get_characteristic("StatusLowBattery")
+        self.battery_level = battery.get_characteristic("BatteryLevel")
+        self.charging_state = battery.get_characteristic("ChargingState")
+        self.status_low_battery = battery.get_characteristic("StatusLowBattery")
 
-    @Accessory.run_at_interval(30)
+    @Accessory.run_at_interval(10)
     def run(self):
         try:
             result = subprocess.run(
@@ -110,11 +111,11 @@ class UPSAccessory(Accessory):
             on_line = "OL" in status
             low_battery = "LB" in status
 
-            self.char_on.set_value(on_line)
-            self.char_outlet_in_use.set_value(on_line)
-            self.char_battery_level.set_value(int(data.get("battery.charge", 0)))
-            self.char_charging_state.set_value(1 if on_line else 0)
-            self.char_status_low_battery.set_value(1 if low_battery else 0)
+            self.on_characteristic.set_value(on_line)
+            self.outlet_in_use.set_value(on_line)
+            self.battery_level.set_value(int(data.get("battery.charge", 0)))
+            self.charging_state.set_value(1 if on_line else 0)
+            self.status_low_battery.set_value(1 if low_battery else 0)
 
             logging.info("UPS status=%s charge=%s%%", status, data.get("battery.charge", "?"))
         except Exception:
