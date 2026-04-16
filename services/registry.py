@@ -9,6 +9,7 @@ class Host:
     name: str
     mac: str
     holdup_timer: int = 60
+    holddown_timer: int = 60
 
 
 @dataclass

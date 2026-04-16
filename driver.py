@@ -27,6 +27,7 @@ class HostAccessory(Accessory):
         self.authorized_private_key = authorized_private_key
         self.authorized_user_name = authorized_user_name
         self.last_on_time = None
+        self.last_off_time = None
 
         outlet = self.add_preload_service("Outlet")
         self.on_characteristic = outlet.get_characteristic("On")
@@ -41,6 +42,12 @@ class HostAccessory(Accessory):
             if elapsed < self.host.holdup_timer:
                 logging.info("Reachability %s: holding up for %.0fs after power on", self.host.name, self.host.holdup_timer - elapsed)
                 self.on_characteristic.set_value(True)
+                return
+        if self.last_off_time is not None:
+            elapsed = time.monotonic() - self.last_off_time
+            if elapsed < self.host.holddown_timer:
+                logging.info("Reachability %s: holding down for %.0fs after shutdown", self.host.name, self.host.holddown_timer - elapsed)
+                self.on_characteristic.set_value(False)
                 return
         try:
             result = subprocess.run(
@@ -60,9 +67,32 @@ class HostAccessory(Accessory):
 
     def _set_on(self, value: bool):
         if value:
+            if self.last_on_time is not None:
+                elapsed = time.monotonic() - self.last_on_time
+                if elapsed < self.host.holdup_timer:
+                    logging.info(
+                        "Skipping wake for %s: hold-up active for %.0fs more",
+                        self.host.name,
+                        self.host.holdup_timer - elapsed,
+                    )
+                    self.on_characteristic.set_value(True)
+                    return
             self.last_on_time = time.monotonic()
+            self.last_off_time = None
             command = ["sudo", "etherwake", "-b", "-D", "-i", detect_interface(), self.host.mac]
         else:
+            if self.last_off_time is not None:
+                elapsed = time.monotonic() - self.last_off_time
+                if elapsed < self.host.holddown_timer:
+                    logging.info(
+                        "Skipping shutdown for %s: hold-down active for %.0fs more",
+                        self.host.name,
+                        self.host.holddown_timer - elapsed,
+                    )
+                    self.on_characteristic.set_value(False)
+                    return
+            self.last_off_time = time.monotonic()
+            self.last_on_time = None
             command = [
                 "ssh",
                 "-i", str(self.authorized_private_key),

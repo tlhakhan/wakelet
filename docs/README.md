@@ -14,7 +14,7 @@ cp docs/registry.yaml /etc/wakelet/registry.yaml
 
 ### Hosts
 
-Each host entry requires a hostname and a MAC address. The `holdup_timer` field is optional and controls how many seconds to wait after a power-on command before checking reachability (defaults to 60 seconds):
+Each host entry requires a hostname and a MAC address. The `holdup_timer` and `holddown_timer` fields are optional. `holdup_timer` controls how many seconds to wait after a power-on command before checking reachability, and `holddown_timer` does the same after a shutdown command. Both default to 60 seconds:
 
 ```yaml
 hosts:
@@ -23,6 +23,7 @@ hosts:
   - name: nas.local
     mac: ca:fe:ba:be:00:02
     holdup_timer: 90
+    holddown_timer: 120
 ```
 
 ### UPS
